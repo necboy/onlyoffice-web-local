@@ -77,7 +77,7 @@ class X2TConverter {
         '/working/themes',
     ]
     private readonly SCRIPT_PATH = './wasm/x2t/x2t.js'
-    private readonly INIT_TIMEOUT = 20000
+    private readonly INIT_TIMEOUT = 30000
 
     /**
      * 加载 X2T 脚本文件
@@ -117,7 +117,7 @@ class X2TConverter {
             return this.initPromise
         }
 
-        this.initPromise = this.doInitialize()
+                this.initPromise = this.doInitialize()
         return this.initPromise
     }
 

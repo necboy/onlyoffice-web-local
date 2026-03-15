@@ -57,8 +57,6 @@ import DocumentHandler from '../components/DocumentHandler.vue'
 import { useRoute } from 'vue-router'
 import { ElLoading } from 'element-plus'
 const showCreateDialog = ref(false)
-const selectedFile = ref<File | null>(null)
-const documentHandler = ref<InstanceType<typeof DocumentHandler> | null>(null)
 const docmentObj = ref<DocmentType | null>(null)
 
 const onCreateNew = (ext: string) => {
@@ -115,11 +113,21 @@ async function initFileUrl() {
       fileName = filenameParam
     }
 
-    // 2. 如果没有 filename 参数，尝试从 URL 末尾解析
+    // 2. 如果没有 filename 参数，尝试从 URL pathname 末尾解析（先剥离 query 参数）
     if (!fileName) {
-      const match = decodeURIComponent(url).match(/\/([^\/?#]+)$/)
-      if (match && match[1].includes('.')) {
-        fileName = match[1]
+      try {
+        const urlObj = new URL(url)
+        const pathParts = urlObj.pathname.split('/')
+        const lastPart = pathParts[pathParts.length - 1]
+        if (lastPart && lastPart.includes('.')) {
+          fileName = decodeURIComponent(lastPart)
+        }
+      } catch {
+        // URL 解析失败时降级用正则（兼容相对路径）
+        const match = decodeURIComponent(url).match(/\/([^\/?#]+)(?:\?.*)?$/)
+        if (match && match[1].includes('.')) {
+          fileName = match[1]
+        }
       }
     }
 
