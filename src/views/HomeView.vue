@@ -1,5 +1,15 @@
 <template>
   <div class="home">
+    <!-- URL 参数加载进度条 -->
+    <LoadingProgress
+      :visible="urlLoading.visible"
+      :stages="urlLoading.stages"
+      :current-stage-index="urlLoading.stageIndex"
+      :stage-progress="urlLoading.stageProgress"
+      :file-name="urlLoading.fileName"
+      :file-type="urlLoading.fileType"
+    />
+
     <!-- 顶部操作区域 -->
     <div class="top-operation-bar" v-if="!docmentObj?.fileName">
       <el-button type="primary" @click="showCreateDialog = true">新建/打开文件</el-button>
@@ -51,13 +61,33 @@
 
 <script lang="ts" setup>
 import { FolderOpened } from '@element-plus/icons-vue'
-import { onMounted, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { DocmentType } from '@/utils/util'
 import DocumentHandler from '../components/DocumentHandler.vue'
+import LoadingProgress, { type LoadingStage } from '../components/LoadingProgress.vue'
 import { useRoute } from 'vue-router'
-import { ElLoading } from 'element-plus'
+
 const showCreateDialog = ref(false)
 const docmentObj = ref<DocmentType | null>(null)
+
+// URL 加载进度状态
+const urlLoading = reactive({
+  visible: false,
+  stageIndex: 0,
+  stageProgress: 0,
+  fileName: '',
+  fileType: '',
+  stages: [
+    { label: '下载文件', weight: 0.5 },
+    { label: '解析文件', weight: 0.3 },
+    { label: '打开文档', weight: 0.2 },
+  ] as LoadingStage[],
+})
+
+function setStage(index: number, progress = -1) {
+  urlLoading.stageIndex = index
+  urlLoading.stageProgress = progress
+}
 
 const onCreateNew = (ext: string) => {
   docmentObj.value = {
@@ -95,38 +125,62 @@ async function initFileUrl() {
     console.warn('未提供文件 URL')
     return
   }
-  const laodingInstance = ElLoading.service({
-    lock: true,
-    text: 'Loading',
-    background: 'rgba(0, 0, 0, 0.7)',
-  })
+
+  // 解析文件名和类型（提前用于显示图标）
+  let earlyFileName = filenameParam || ''
+  if (!earlyFileName) {
+    try {
+      const urlObj = new URL(url)
+      const lastPart = urlObj.pathname.split('/').pop() || ''
+      if (lastPart.includes('.')) earlyFileName = decodeURIComponent(lastPart)
+    } catch { /* ignore */ }
+  }
+  const earlyExt = earlyFileName.split('.').pop() || ''
+  urlLoading.fileName = earlyFileName
+  urlLoading.fileType = earlyExt
+  urlLoading.visible = true
+  setStage(0, 0)
+
   try {
+    // ── 阶段 0：下载文件（流式感知真实进度）──
     const res = await fetch(url)
-
     if (!res.ok) throw new Error('文件请求失败')
-    laodingInstance.close()
-    const blob = await res.blob()
-    let fileName = ''
 
-    // 1. 从 query 参数获取 filename
-    if (filenameParam) {
-      fileName = filenameParam
+    const contentLength = res.headers.get('Content-Length')
+    let blob: Blob
+
+    if (contentLength && res.body) {
+      // 有 Content-Length，使用流式读取计算真实进度
+      const total = parseInt(contentLength, 10)
+      const reader = res.body.getReader()
+      const chunks: Uint8Array[] = []
+      let received = 0
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value)
+        received += value.length
+        setStage(0, Math.min((received / total) * 100, 99))
+      }
+      blob = new Blob(chunks)
+    } else {
+      // 无法感知进度，用不确定动画
+      setStage(0, -1)
+      blob = await res.blob()
     }
+    setStage(0, 100)
 
-    // 2. 如果没有 filename 参数，通过 URL 解析文件名（支持多种 API 模式）
+    // ── 解析文件名 ──
+    let fileName = filenameParam || ''
     if (!fileName) {
       try {
         const urlObj = new URL(url)
-
-        // 2a. 优先从 URL pathname 末尾解析（如 /api/files/uuid.pptx?token=...）
         const pathParts = urlObj.pathname.split('/')
         const lastPart = pathParts[pathParts.length - 1]
         if (lastPart && lastPart.includes('.')) {
           fileName = decodeURIComponent(lastPart)
         }
-
-        // 2b. 如果 pathname 无扩展名，尝试从 path/file/filename 等查询参数中提取
-        //     （如 /api/explore/binary?path=/home/node/xxx.docx&token=...）
         if (!fileName) {
           const pathParam =
             urlObj.searchParams.get('path') ||
@@ -140,34 +194,41 @@ async function initFileUrl() {
             }
           }
         }
-      } catch {
-        // URL 解析失败，fileName 保持空，继续尝试后续方式
-      }
+      } catch { /* ignore */ }
     }
-
-    // 3. 尝试从 Content-Disposition 响应头获取
     if (!fileName) {
       const disposition = res.headers.get('Content-Disposition')
       if (disposition) {
         const match = disposition.match(/filename\*=UTF-8''(.+)|filename="?([^"]+)"?/)
-        if (match) {
-          fileName = decodeURIComponent(match[1] || match[2])
-        }
+        if (match) fileName = decodeURIComponent(match[1] || match[2])
       }
     }
-
-    // 4. 最终还拿不到文件名，拒绝处理
     if (!fileName) {
       console.error('无法确定文件名，拒绝打开')
+      urlLoading.visible = false
       return
     }
 
+    urlLoading.fileName = fileName
+    urlLoading.fileType = fileName.split('.').pop() || ''
+
+    // ── 阶段 1：解析文件 ──
+    setStage(1, -1)
     const file = new File([blob], fileName, { type: blob.type })
+
+    // ── 阶段 2：打开文档 ──
+    setStage(2, -1)
     docmentObj.value = { fileName, file }
     showCreateDialog.value = false
+
+    // 短暂延迟后关闭，让用户看到"完成"状态
+    setTimeout(() => {
+      urlLoading.stageProgress = 100
+      setTimeout(() => { urlLoading.visible = false }, 400)
+    }, 300)
   } catch (err) {
     console.error('加载文件失败:', err)
-    laodingInstance.close()
+    urlLoading.visible = false
   }
 }
 onMounted(() => {
