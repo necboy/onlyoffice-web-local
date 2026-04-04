@@ -225,7 +225,6 @@ async function handleSaveDocument(event: SaveEvent) {
     if (event.data && event.data.data) {
         const { data, option } = event.data
         console.log(data, 'data')
-        debugger
         // 创建下载
         await convertBinToDocumentAndDownload(
             data.data,
@@ -264,7 +263,6 @@ function dataURItoBlob(dataURI: string): Blob {
  * @param event - OnlyOffice 编辑器的文件写入事件
  */
 function handleWriteFile(event: any) {
-    debugger
     try {
         console.log('Write file event:', event)
 

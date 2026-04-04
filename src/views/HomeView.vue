@@ -113,25 +113,39 @@ async function initFileUrl() {
       fileName = filenameParam
     }
 
-    // 2. 如果没有 filename 参数，尝试从 URL pathname 末尾解析（先剥离 query 参数）
+    // 2. 如果没有 filename 参数，通过 URL 解析文件名（支持多种 API 模式）
     if (!fileName) {
       try {
         const urlObj = new URL(url)
+
+        // 2a. 优先从 URL pathname 末尾解析（如 /api/files/uuid.pptx?token=...）
         const pathParts = urlObj.pathname.split('/')
         const lastPart = pathParts[pathParts.length - 1]
         if (lastPart && lastPart.includes('.')) {
           fileName = decodeURIComponent(lastPart)
         }
-      } catch {
-        // URL 解析失败时降级用正则（兼容相对路径）
-        const match = decodeURIComponent(url).match(/\/([^\/?#]+)(?:\?.*)?$/)
-        if (match && match[1].includes('.')) {
-          fileName = match[1]
+
+        // 2b. 如果 pathname 无扩展名，尝试从 path/file/filename 等查询参数中提取
+        //     （如 /api/explore/binary?path=/home/node/xxx.docx&token=...）
+        if (!fileName) {
+          const pathParam =
+            urlObj.searchParams.get('path') ||
+            urlObj.searchParams.get('file') ||
+            urlObj.searchParams.get('filename')
+          if (pathParam) {
+            const paramParts = pathParam.split('/')
+            const paramLastPart = paramParts[paramParts.length - 1]
+            if (paramLastPart && paramLastPart.includes('.')) {
+              fileName = decodeURIComponent(paramLastPart)
+            }
+          }
         }
+      } catch {
+        // URL 解析失败，fileName 保持空，继续尝试后续方式
       }
     }
 
-    // 3. 如果 URL 也解析失败，尝试从 Content-Disposition 响应头获取
+    // 3. 尝试从 Content-Disposition 响应头获取
     if (!fileName) {
       const disposition = res.headers.get('Content-Disposition')
       if (disposition) {
@@ -149,7 +163,6 @@ async function initFileUrl() {
     }
 
     const file = new File([blob], fileName, { type: blob.type })
-    debugger
     docmentObj.value = { fileName, file }
     showCreateDialog.value = false
   } catch (err) {
