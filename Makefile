@@ -2,19 +2,23 @@
 # Docker 打包 & 发布 Makefile
 # ============================================================
 
-REGISTRY   := docker.dsai.vip
-NAMESPACE  := mantis
-IMAGE_NAME := onlyoffice-web-local
-VERSION    := $(shell node -p "require('./package.json').version" 2>/dev/null || echo "1.0.0")
-FULL_IMAGE := $(REGISTRY)/$(NAMESPACE)/$(IMAGE_NAME)
+REGISTRY        := docker.dsai.vip
+NAMESPACE       := mantis
+IMAGE_NAME      := onlyoffice-web-local
+VERSION         := $(shell node -p "require('./package.json').version" 2>/dev/null || echo "1.0.0")
+FULL_IMAGE      := $(REGISTRY)/$(NAMESPACE)/$(IMAGE_NAME)
 
 # 多架构平台，可通过 PLATFORMS=linux/amd64 覆盖
-PLATFORMS  ?= linux/amd64,linux/arm64
+PLATFORMS       ?= linux/amd64,linux/arm64
 
 # buildx builder 名称
-BUILDER    := multiarch-builder
+BUILDER         := multiarch-builder
 
-.PHONY: help setup login build release release-prebuilt tag-latest
+# 阿里云镜像仓库（可通过环境变量覆盖）
+ALIYUN_REGISTRY ?= crpi-uhlkn5owwv2a1uox.cn-shanghai.personal.cr.aliyuncs.com
+ALIYUN_IMAGE    := $(ALIYUN_REGISTRY)/$(NAMESPACE)/$(IMAGE_NAME)
+
+.PHONY: help setup login build release release-prebuilt tag-latest sync-to-aliyun login-aliyun
 
 ## 显示帮助信息
 help:
@@ -28,17 +32,22 @@ help:
 	@echo "    release          多架构构建并直接推送到仓库 (需容器内网络正常)"
 	@echo "    release-prebuilt 本地 pnpm build 后推送 (容器无法访问 npm 时使用)"
 	@echo "    tag-latest       为指定版本重新打 latest 标签并推送"
+	@echo "    login-aliyun     登录到阿里云镜像仓库"
+	@echo "    sync-to-aliyun   从 $(REGISTRY) 同步镜像到阿里云 (用 crane，无需 Docker VM)"
 	@echo ""
 	@echo "  变量:"
-	@echo "    VERSION     镜像版本 (当前: $(VERSION))"
-	@echo "    PLATFORMS   构建平台 (当前: $(PLATFORMS))"
-	@echo "    REGISTRY    镜像仓库 (当前: $(REGISTRY))"
+	@echo "    VERSION          镜像版本 (当前: $(VERSION))"
+	@echo "    PLATFORMS        构建平台 (当前: $(PLATFORMS))"
+	@echo "    REGISTRY         源仓库 (当前: $(REGISTRY))"
+	@echo "    ALIYUN_REGISTRY  阿里云仓库 (当前: $(ALIYUN_REGISTRY))"
 	@echo ""
 	@echo "  示例:"
-	@echo "    make setup                           # 初始化 buildx (首次)"
-	@echo "    make release                         # 发布 v$(VERSION) 多架构镜像"
-	@echo "    make release VERSION=2.0.0           # 指定版本号发布"
-	@echo "    make release PLATFORMS=linux/amd64   # 仅发布单架构"
+	@echo "    make setup                                        # 初始化 buildx (首次)"
+	@echo "    make release                                      # 发布 v$(VERSION) 多架构镜像"
+	@echo "    make release VERSION=2.0.0                        # 指定版本号发布"
+	@echo "    make release PLATFORMS=linux/amd64                # 仅发布单架构"
+	@echo "    make sync-to-aliyun                               # 同步最新版本到阿里云"
+	@echo "    make sync-to-aliyun VERSION=1.0.0                 # 同步指定版本到阿里云"
 	@echo ""
 
 ## 初始化多架构 buildx builder
@@ -92,3 +101,41 @@ tag-latest:
 		-t $(FULL_IMAGE):latest \
 		$(FULL_IMAGE):$(VERSION)
 	@echo ">>> 完成: $(FULL_IMAGE):latest -> $(VERSION)"
+
+# ============================================================
+# 阿里云同步（从 docker.dsai.vip 转推，绕过 Docker Desktop VM）
+# 依赖: brew install crane，且已分别登录两个 Registry
+# 用法: make sync-to-aliyun [VERSION=x.y.z]
+# ============================================================
+
+## 登录阿里云镜像仓库
+login-aliyun:
+	@echo ">>> 登录到 $(ALIYUN_REGISTRY) ..."
+	docker login $(ALIYUN_REGISTRY)
+
+## 从 docker.dsai.vip 同步最新镜像到阿里云（用 crane，绕过 Docker Desktop VM）
+sync-to-aliyun:
+	@command -v crane >/dev/null 2>&1 || { echo "❌ crane 未安装，请运行: brew install crane"; exit 1; }
+	@echo ""
+	@echo "🔄 同步镜像到阿里云"
+	@echo "   源:  $(FULL_IMAGE):$(VERSION)"
+	@echo "   目标: $(ALIYUN_IMAGE):$(VERSION)"
+	@echo ""
+	@for i in 1 2 3 4 5; do \
+		crane copy \
+			$(FULL_IMAGE):$(VERSION) \
+			$(ALIYUN_IMAGE):$(VERSION) && break || \
+		{ [ "$$i" = "5" ] && echo "❌ 同步 :$(VERSION) 失败，已重试5次" && exit 1 || \
+		  (echo "  ⚠️  第$$i次失败，15秒后重试..." && sleep 15); }; \
+	done
+	@for i in 1 2 3 4 5; do \
+		crane copy \
+			$(FULL_IMAGE):latest \
+			$(ALIYUN_IMAGE):latest && break || \
+		{ [ "$$i" = "5" ] && echo "❌ 同步 :latest 失败，已重试5次" && exit 1 || \
+		  (echo "  ⚠️  第$$i次失败，15秒后重试..." && sleep 15); }; \
+	done
+	@echo ""
+	@echo "✅ 同步完成!"
+	@echo "   $(ALIYUN_IMAGE):$(VERSION)"
+	@echo "   $(ALIYUN_IMAGE):latest"
