@@ -119,8 +119,10 @@ const onOpenDocument = async () => {
 // 页面初始化后根据路由地址获取文件 并自动打开
 async function initFileUrl() {
   const route = useRoute()
-  const url = route.query.url as string | undefined
-  const filenameParam = route.query.filename as string | undefined
+  // Hash 模式下 route.query 读不到 # 之前的参数，用 window.location.search 兜底
+  const searchParams = new URLSearchParams(window.location.search)
+  const url = (route.query.url as string | undefined) ?? searchParams.get('url') ?? undefined
+  const filenameParam = (route.query.filename as string | undefined) ?? searchParams.get('filename') ?? undefined
   if (!url) {
     console.warn('未提供文件 URL')
     return

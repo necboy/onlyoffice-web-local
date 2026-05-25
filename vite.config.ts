@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => {
       server: {
         port: parseInt(env.VITE_PORT) || 3000,
         host: '0.0.0.0',
+        // 允许 Vite 处理带中文文件名或外部 URL 参数的请求
+        fs: { allow: ['..', '/'] },
+        cors: true,
       },
       build: {
         outDir: 'html',

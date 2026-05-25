@@ -28,7 +28,110 @@ const loading = ref(false)
 // 全局 media 映射对象
 const media: { [key: string]: string } = {}
 
+// ── 父窗口 postMessage 通信：定位文档内文字 ──────────────
+
+function navigateToText(text: string) {
+    // DocsAPI 会把 div#iframe 直接替换为 <iframe name="frameEditor">（不是嵌套关系）
+    const innerFrame = document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement | null
+    if (!innerFrame?.contentDocument || !innerFrame?.contentWindow) return
+
+    const innerDoc = innerFrame.contentDocument
+    const win = innerFrame.contentWindow as any
+
+    // 判断左侧搜索面板是否已打开
+    const leftPanel = innerDoc.querySelector('#left-panel-search') as HTMLElement | null
+    const isPanelVisible = leftPanel ? leftPanel.offsetParent !== null : false
+
+    const doSearch = () => {
+        const input = innerDoc.querySelector('#search-adv-text input') as HTMLInputElement | null
+        if (!input) return
+        input.focus()
+        // 用 native setter 绕过 Backbone 的 value 拦截，确保 input 事件能触发搜索
+        const nativeSetter = Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, 'value')?.set
+        nativeSetter?.call(input, text)
+        input.dispatchEvent(new win.Event('input', { bubbles: true }))
+    }
+
+    if (isPanelVisible) {
+        doSearch()
+    } else {
+        // 点击左侧搜索按钮打开面板，再执行搜索
+        const searchBtn = innerDoc.querySelector('#left-btn-searchbar') as HTMLElement | null
+        if (searchBtn) {
+            searchBtn.click()
+            setTimeout(doSearch, 350)
+        } else {
+            doSearch()
+        }
+    }
+}
+
+function replaceTextInEditor(original: string, replacement: string) {
+    const innerFrame = document.querySelector('iframe[name="frameEditor"]') as HTMLIFrameElement | null
+    if (!innerFrame?.contentDocument || !innerFrame?.contentWindow) return
+
+    const innerDoc = innerFrame.contentDocument
+    const win = innerFrame.contentWindow as any
+
+    const leftPanel = innerDoc.querySelector('#left-panel-search') as HTMLElement | null
+    const isPanelVisible = leftPanel ? leftPanel.offsetParent !== null : false
+
+    const doReplace = () => {
+        // 强制显示替换区域（.edit-setting 在 find-only 模式下被隐藏）
+        innerDoc.querySelectorAll<HTMLElement>('.edit-setting').forEach(el => {
+            el.style.removeProperty('display')
+        })
+
+        // 设置搜索文字并触发 input 事件（触发搜索 + 启用替换按钮）
+        const searchInput = innerDoc.querySelector('#search-adv-text input') as HTMLInputElement | null
+        if (!searchInput) return
+        searchInput.focus()
+        const nativeSetter = Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, 'value')?.set
+        nativeSetter?.call(searchInput, original)
+        searchInput.dispatchEvent(new win.Event('input', { bubbles: true }))
+
+        // 等待 onInputSearchChange 的 400ms 防抖 + 留 100ms 余量
+        setTimeout(() => {
+            // 设置替换文字（只需写入 DOM 值，onReplaceClick 会直接 getValue 读取）
+            const replaceInput = innerDoc.querySelector('#search-adv-replace-text input') as HTMLInputElement | null
+            if (replaceInput) {
+                nativeSetter?.call(replaceInput, replacement)
+            }
+
+            // 点击「全部替换」
+            setTimeout(() => {
+                const replaceAllBtn = innerDoc.querySelector<HTMLElement>('#search-adv-replace-all')
+                if (replaceAllBtn && !replaceAllBtn.hasAttribute('disabled')) {
+                    replaceAllBtn.click()
+                }
+            }, 100)
+        }, 500)
+    }
+
+    if (isPanelVisible) {
+        doReplace()
+    } else {
+        const searchBtn = innerDoc.querySelector<HTMLElement>('#left-btn-searchbar')
+        if (searchBtn) {
+            searchBtn.click()
+            setTimeout(doReplace, 400)
+        }
+    }
+}
+
+function handleExternalMessage(event: MessageEvent) {
+    const { type, text, original, replacement } = (event.data ?? {}) as Record<string, string>
+    if (type === 'EDITOR_NAVIGATE_TEXT') {
+        if (!text?.trim()) return
+        navigateToText(text.trim())
+    } else if (type === 'EDITOR_REPLACE_TEXT') {
+        if (!original || replacement == null) return
+        replaceTextInEditor(original, replacement)
+    }
+}
+
 onMounted(async () => {
+    window.addEventListener('message', handleExternalMessage)
     loading.value = true
     try {
         await initX2TScript()
@@ -115,6 +218,12 @@ function createEditorInstance(config: {
 
     const { fileName, fileType, binData, media } = config
 
+    // PPT 文件默认隐藏左侧缩略图面板（仅首次，之后尊重用户偏好）
+    const pptTypes = ['ppt', 'pptx', 'odp', 'pot', 'potx', 'pptm', 'ppsx', 'pps']
+    if (pptTypes.includes(fileType.toLowerCase()) && localStorage.getItem('pe-hidden-leftmenu') === null) {
+        localStorage.setItem('pe-hidden-leftmenu', 'true')
+    }
+
     editor.value = new window.DocsAPI.DocEditor('iframe', {
         document: {
             title: fileName,
@@ -132,6 +241,7 @@ function createEditorInstance(config: {
                 help: false,
                 about: false,
                 hideRightMenu: true,
+                zoom: -2, // -2 = fit page width (自适应宽度)
                 features: {
                     spellcheck: {
                         change: false,
@@ -363,6 +473,7 @@ function getMimeTypeFromExtension(extension: string): string {
 
 // 组件卸载时清理对象 URL
 onBeforeUnmount(() => {
+    window.removeEventListener('message', handleExternalMessage)
     // 清理媒体资源的对象 URL
     Object.values(media).forEach((url) => {
         if (typeof url === 'string' && url.startsWith('blob:')) {
