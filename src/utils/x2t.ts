@@ -526,6 +526,35 @@ export const convertBinToDocumentAndDownload = (
     targetExt?: string,
 ) => x2tConverter.convertBinToDocumentAndDownload(bin, fileName, targetExt)
 
+/** 只做 bin→文档格式转换，不触发浏览器下载，返回 Uint8Array */
+export async function convertBinOnly(
+    bin: Uint8Array,
+    originalFileName: string,
+    targetExt = 'DOCX',
+): Promise<{ fileName: string; data: Uint8Array }> {
+    await x2tConverter.initialize()
+    const module = (x2tConverter as any).x2tModule as any
+    if (!module) throw new Error('x2t module not ready')
+
+    const base = originalFileName.replace(/\.[^/.]+$/, '')
+    const binFile  = `${base}.bin`
+    const outFile  = `${base}.${targetExt.toLowerCase()}`
+
+    module.FS.writeFile(`/working/${binFile}`, bin)
+
+    const additionalParams = targetExt === 'PDF' ? '<m_sFontDir>/working/fonts/</m_sFontDir>' : ''
+    const params = (x2tConverter as any).createConversionParams(
+        `/working/${binFile}`,
+        `/working/${outFile}`,
+        additionalParams,
+    )
+    module.FS.writeFile('/working/params.xml', params)
+    ;(x2tConverter as any).executeConversion('/working/params.xml')
+
+    const data = module.FS.readFile(`/working/${outFile}`) as Uint8Array
+    return { fileName: outFile, data }
+}
+
 // 文件类型常量
 export const oAscFileType = {
     UNKNOWN: 0,

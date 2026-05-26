@@ -14,6 +14,7 @@ import {
     initX2T,
     convertDocument,
     convertBinToDocumentAndDownload,
+    convertBinOnly,
     c_oAscFileType2,
 } from '@/utils/x2t'
 const X2T = ref(null)
@@ -72,41 +73,64 @@ function replaceTextInEditor(original: string, replacement: string) {
 
     const innerDoc = innerFrame.contentDocument
     const win = innerFrame.contentWindow as any
+    const nativeSetter = Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, 'value')?.set
 
-    const leftPanel = innerDoc.querySelector('#left-panel-search') as HTMLElement | null
-    const isPanelVisible = leftPanel ? leftPanel.offsetParent !== null : false
+    /** 把值写入替换输入框（用两种方式确保写入） */
+    const writeReplaceValue = () => {
+        const replaceInput = innerDoc.querySelector<HTMLInputElement>('#search-adv-replace-text input')
+        if (!replaceInput) return
+        nativeSetter?.call(replaceInput, replacement)
+        // 备用：直接赋属性（以防 native setter 被重写）
+        if (replaceInput.value !== replacement) replaceInput.value = replacement
+    }
 
-    const doReplace = () => {
-        // 强制显示替换区域（.edit-setting 在 find-only 模式下被隐藏）
+    /** 强制显示替换区域 */
+    const showReplaceSection = () => {
         innerDoc.querySelectorAll<HTMLElement>('.edit-setting').forEach(el => {
             el.style.removeProperty('display')
         })
+    }
 
-        // 设置搜索文字并触发 input 事件（触发搜索 + 启用替换按钮）
-        const searchInput = innerDoc.querySelector('#search-adv-text input') as HTMLInputElement | null
+    /**
+     * 等搜索防抖完成后点击「全部替换」，最多重试 maxTry 次（每次 200ms）
+     * 每次点击前都重写替换值，以防值被清空
+     */
+    const attemptClick = (triesLeft: number) => {
+        showReplaceSection()
+        writeReplaceValue()
+
+        const btn = innerDoc.querySelector<HTMLElement>('#search-adv-replace-all')
+        if (!btn) return
+
+        const isDisabled = btn.hasAttribute('disabled') || btn.classList.contains('disabled')
+        if (!isDisabled) {
+            btn.click()
+        } else if (triesLeft > 0) {
+            setTimeout(() => attemptClick(triesLeft - 1), 200)
+        }
+    }
+
+    const doReplace = () => {
+        showReplaceSection()
+
+        // 同时写入搜索值和替换值，再触发搜索
+        const searchInput = innerDoc.querySelector<HTMLInputElement>('#search-adv-text input')
         if (!searchInput) return
         searchInput.focus()
-        const nativeSetter = Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, 'value')?.set
         nativeSetter?.call(searchInput, original)
+
+        // 先写替换值（在搜索防抖期间写入，防止后续被覆盖）
+        writeReplaceValue()
+
+        // 触发搜索（onInputSearchChange 有 400ms 防抖）
         searchInput.dispatchEvent(new win.Event('input', { bubbles: true }))
 
-        // 等待 onInputSearchChange 的 400ms 防抖 + 留 100ms 余量
-        setTimeout(() => {
-            // 设置替换文字（只需写入 DOM 值，onReplaceClick 会直接 getValue 读取）
-            const replaceInput = innerDoc.querySelector('#search-adv-replace-text input') as HTMLInputElement | null
-            if (replaceInput) {
-                nativeSetter?.call(replaceInput, replacement)
-            }
-
-            // 点击「全部替换」
-            setTimeout(() => {
-                const replaceAllBtn = innerDoc.querySelector<HTMLElement>('#search-adv-replace-all')
-                if (replaceAllBtn && !replaceAllBtn.hasAttribute('disabled')) {
-                    replaceAllBtn.click()
-                }
-            }, 100)
-        }, 500)
+        // 等待防抖 400ms + 100ms 余量后开始尝试点击（最多重试 4 次）
+        setTimeout(() => attemptClick(4), 520)
     }
+
+    const leftPanel = innerDoc.querySelector<HTMLElement>('#left-panel-search')
+    const isPanelVisible = leftPanel ? leftPanel.offsetParent !== null : false
 
     if (isPanelVisible) {
         doReplace()
@@ -242,6 +266,8 @@ function createEditorInstance(config: {
                 about: false,
                 hideRightMenu: true,
                 zoom: -2, // -2 = fit page width (自适应宽度)
+                autosave: false,  // 禁用自动保存，避免反复触发 onSave 重置修改状态
+                forcesave: false,
                 features: {
                     spellcheck: {
                         change: false,
@@ -330,26 +356,37 @@ interface SaveEvent {
 }
 
 async function handleSaveDocument(event: SaveEvent) {
-    console.log('Save document event:', event)
-
-    if (event.data && event.data.data) {
-        const { data, option } = event.data
-        console.log(data, 'data')
-        // 创建下载
-        await convertBinToDocumentAndDownload(
-            data.data,
-            props.file.fileName,
-            c_oAscFileType2[option.outputformat],
-        )
-        // const blob = dataURItoBlob(data);
-        // saveAs(blob, props.file.fileName);
+    if (!event.data?.data) {
+        editor.value.sendCommand({ command: 'asc_onSaveCallback', data: { err_code: 0 } })
+        return
     }
 
-    // 告知编辑器保存完成
-    editor.value.sendCommand({
-        command: 'asc_onSaveCallback',
-        data: { err_code: 0 },
-    })
+    const { data, option } = event.data
+    const targetExt: string = c_oAscFileType2[option.outputformat] ?? 'DOCX'
+    const saveUrl: string | undefined = props.file.saveUrl
+
+    try {
+        if (saveUrl) {
+            // ── 有 saveUrl：转换后回写服务器，不触发浏览器下载 ──
+            const { fileName, data: fileBytes } = await convertBinOnly(data.data, props.file.fileName, targetExt)
+            const blob = new Blob([fileBytes], { type: 'application/octet-stream' })
+            const formData = new FormData()
+            formData.append('file', new File([blob], fileName), fileName)
+
+            const res = await fetch(saveUrl, { method: 'POST', body: formData })
+            if (!res.ok) throw new Error(`服务器响应 ${res.status}`)
+
+            console.log('[Save] 已回写服务器:', saveUrl)
+        } else {
+            // ── 无 saveUrl：原有本地下载逻辑 ──
+            await convertBinToDocumentAndDownload(data.data, props.file.fileName, targetExt)
+        }
+    } catch (err: any) {
+        console.error('[Save] 保存失败:', err?.message ?? err)
+        // 即使出错也告知编辑器"已处理"，避免编辑器卡在等待状态
+    }
+
+    editor.value.sendCommand({ command: 'asc_onSaveCallback', data: { err_code: 0 } })
 }
 
 // 辅助函数：将base64转为Blob

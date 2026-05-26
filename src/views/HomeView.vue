@@ -123,6 +123,7 @@ async function initFileUrl() {
   const searchParams = new URLSearchParams(window.location.search)
   const url = (route.query.url as string | undefined) ?? searchParams.get('url') ?? undefined
   const filenameParam = (route.query.filename as string | undefined) ?? searchParams.get('filename') ?? undefined
+  const saveUrl = (route.query.saveurl as string | undefined) ?? searchParams.get('saveurl') ?? undefined
   if (!url) {
     console.warn('未提供文件 URL')
     return
@@ -220,7 +221,7 @@ async function initFileUrl() {
 
     // ── 阶段 2：打开文档 ──
     setStage(2, -1)
-    docmentObj.value = { fileName, file }
+    docmentObj.value = { fileName, file, saveUrl }
     showCreateDialog.value = false
 
     // 短暂延迟后关闭，让用户看到"完成"状态
