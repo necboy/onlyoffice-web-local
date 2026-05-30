@@ -23,8 +23,19 @@
       />
       <!-- 主要内容区域 -->
       <div class="main-content" v-else>
-        <h1>欢迎使用文档编辑器</h1>
-        <p>点击顶部按钮开始创建或打开文档</p>
+        <section v-if="loadError.visible" class="load-error-panel" role="alert" aria-live="assertive">
+          <div class="load-error-icon">!</div>
+          <div class="load-error-content">
+            <h1>{{ loadError.title }}</h1>
+            <p>{{ loadError.message }}</p>
+            <p class="load-error-detail">{{ loadError.detail }}</p>
+            <el-button type="primary" @click="openCurrentPageInNewWindow">在新窗口打开</el-button>
+          </div>
+        </section>
+        <template v-else>
+          <h1>欢迎使用文档编辑器</h1>
+          <p>点击顶部按钮开始创建或打开文档</p>
+        </template>
       </div>
     </div>
 
@@ -69,6 +80,12 @@ import { useRoute } from 'vue-router'
 
 const showCreateDialog = ref(false)
 const docmentObj = ref<DocmentType | null>(null)
+const loadError = reactive({
+  visible: false,
+  title: '',
+  message: '',
+  detail: '',
+})
 
 // URL 加载进度状态
 const urlLoading = reactive({
@@ -87,6 +104,27 @@ const urlLoading = reactive({
 function setStage(index: number, progress = -1) {
   urlLoading.stageIndex = index
   urlLoading.stageProgress = progress
+}
+
+function clearLoadError() {
+  loadError.visible = false
+  loadError.title = ''
+  loadError.message = ''
+  loadError.detail = ''
+}
+
+function showLoadError(err: unknown) {
+  const message = err instanceof Error ? err.message : String(err)
+  loadError.visible = true
+  loadError.title = '文件加载失败'
+  loadError.message = '请点击右上角在新窗口打开的按钮。'
+  loadError.detail = message === 'Failed to fetch'
+    ? '当前页面嵌入在 iframe 中时，浏览器可能会阻止访问本机文件服务。'
+    : message
+}
+
+function openCurrentPageInNewWindow() {
+  window.open(window.location.href, '_blank', 'noopener,noreferrer')
 }
 
 const onCreateNew = (ext: string) => {
@@ -128,6 +166,7 @@ async function initFileUrl() {
     console.warn('未提供文件 URL')
     return
   }
+  clearLoadError()
 
   // 解析文件名和类型（提前用于显示图标）
   let earlyFileName = filenameParam || ''
@@ -232,6 +271,7 @@ async function initFileUrl() {
   } catch (err) {
     console.error('加载文件失败:', err)
     urlLoading.visible = false
+    showLoadError(err)
   }
 }
 onMounted(() => {
@@ -268,6 +308,54 @@ onMounted(() => {
 
   h1 {
     margin-bottom: 20px;
+  }
+}
+
+.load-error-panel {
+  width: min(680px, calc(100% - 40px));
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 24px;
+  border: 1px solid #f3b2a5;
+  border-radius: 8px;
+  background: #fff7f5;
+  box-shadow: 0 12px 32px rgba(154, 52, 18, 0.14);
+}
+
+.load-error-icon {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: #d0442e;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.load-error-content {
+  min-width: 0;
+
+  h1 {
+    margin: 0 0 10px;
+    color: #8f2417;
+    font-size: 24px;
+    line-height: 1.3;
+  }
+
+  p {
+    margin: 0 0 12px;
+    color: #4d2a24;
+    line-height: 1.7;
+  }
+
+  .load-error-detail {
+    color: #7c5148;
+    font-size: 14px;
   }
 }
 
