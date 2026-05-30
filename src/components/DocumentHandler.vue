@@ -377,13 +377,15 @@ async function handleSaveDocument(event: SaveEvent) {
             if (!res.ok) throw new Error(`服务器响应 ${res.status}`)
 
             console.log('[Save] 已回写服务器:', saveUrl)
+            ElMessage({ type: 'success', message: '文件已保存', duration: 2000 })
         } else {
             // ── 无 saveUrl：原有本地下载逻辑 ──
             await convertBinToDocumentAndDownload(data.data, props.file.fileName, targetExt)
         }
     } catch (err: any) {
-        console.error('[Save] 保存失败:', err?.message ?? err)
-        // 即使出错也告知编辑器"已处理"，避免编辑器卡在等待状态
+        const msg = err?.message ?? String(err)
+        console.error('[Save] 保存失败:', msg)
+        ElMessage({ type: 'error', message: `保存失败：${msg}`, duration: 4000 })
     }
 
     editor.value.sendCommand({ command: 'asc_onSaveCallback', data: { err_code: 0 } })
