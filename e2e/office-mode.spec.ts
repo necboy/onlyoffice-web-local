@@ -61,3 +61,21 @@ test('enables explicit editable mode with a save URL and reports server save fai
   expect(await page.evaluate(() => (window as any).__saveCommands.at(-1).data.err_code)).toBe(1)
   await expect(page.getByText('保存失败：服务器响应 403')).toBeVisible()
 })
+
+test('editable workspace copies post file bytes and acknowledge a successful server save', async ({ page }) => {
+  let saved = false
+  await page.route('https://fixtures.example.test/save', async route => {
+    expect(route.request().method()).toBe('POST')
+    expect(route.request().headers()['content-type']).toContain('multipart/form-data')
+    expect(route.request().postDataBuffer()?.toString()).toContain('filename="contract.docx"')
+    saved = true
+    await route.fulfill({ body: '{"success":true}', headers: { 'Access-Control-Allow-Origin': '*' } })
+  })
+  await page.goto('/#/?url=https%3A%2F%2Ffixtures.example.test%2Fcontract.docx&filename=contract.docx&mode=edit&saveurl=https%3A%2F%2Ffixtures.example.test%2Fsave')
+  await expect.poll(() => page.evaluate(() => !!(window as any).__officeConfig)).toBe(true)
+  await page.evaluate(() => (window as any).__officeConfig.events.onSave({ data: { data: { data: [1] }, option: { outputformat: 1 } } }))
+  expect(saved).toBe(true)
+  expect(await page.evaluate(() => (window as any).__saveCommands.at(-1).data.err_code)).toBe(0)
+  await expect(page.getByText('文件已保存', { exact: true })).toBeVisible()
+  await expect(page.getByText('文件已导出到本地，未回写服务器')).toBeHidden()
+})

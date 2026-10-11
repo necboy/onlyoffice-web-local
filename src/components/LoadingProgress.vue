@@ -29,7 +29,7 @@
         </div>
 
         <!-- 阶段文字 -->
-        <div class="stage-text">
+        <div class="stage-text" role="status" aria-live="polite">
           <span class="stage-dot"></span>
           {{ currentStageText }}
         </div>
@@ -74,6 +74,7 @@ const props = defineProps<{
   stageProgress: number // 当前阶段内的进度 0~100
   fileName?: string
   fileType?: string
+  statusText?: string
 }>()
 
 // 是否显示不确定进度（某些阶段无法精确感知进度）
@@ -81,6 +82,7 @@ const isIndeterminate = computed(() => props.stageProgress < 0)
 
 // 当前阶段文字
 const currentStageText = computed(() => {
+  if (props.statusText) return props.statusText
   if (props.currentStageIndex < 0 || props.currentStageIndex >= props.stages.length) return '准备中...'
   return props.stages[props.currentStageIndex]?.label ?? '处理中...'
 })

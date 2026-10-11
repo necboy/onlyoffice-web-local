@@ -1,23 +1,60 @@
 <template>
-    <div class="editor-container" v-loaing="loading" element-loading-text="Loading...">
+    <div class="editor-container">
         <div id="iframe"></div>
+        <div v-if="loading" class="editor-loading" role="status" aria-live="polite">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <p>{{ loadingText }}</p>
+        </div>
+        <div v-if="loadError" class="editor-error" role="alert">
+            <p>文档打开失败，请重试。</p>
+            <el-button type="primary" @click="loadDocument">重新加载</el-button>
+        </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, onBeforeUnmount, ref, watchEffect, watch } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { getDocumentType, DocmentType } from '@/utils/util'
 import { g_sEmpty_bin } from '@/utils/empty_bin'
+import { OFFICE_SCRIPT_TIMEOUT_MS, OFFICE_DOCUMENT_TIMEOUT_MS, OFFICE_INITIALIZING_TEXT } from '@/utils/office-loading'
+import { setupPptPreview } from '@/utils/ppt-preview'
+declare global {
+    interface Window {
+        DocsAPI?: { DocEditor: new (id: string, config: Record<string, any>) => any }
+    }
+}
 // @ts-ignore
 import {
-    initX2TScript,
     initX2T,
     convertDocument,
     convertBinToDocumentAndDownload,
     convertBinOnly,
     c_oAscFileType2,
 } from '@/utils/x2t'
-const X2T = ref(null)
+const emit = defineEmits<{
+    loading: [message: string]
+    ready: []
+    error: [error: Error]
+}>()
+const loadError = ref(false)
+const loadingText = ref(OFFICE_INITIALIZING_TEXT)
+function setLoadingText(message: string) {
+    loadingText.value = message
+    emit('loading', message)
+}
+let disposed = false
+let generation = 0
+let readyTimer: ReturnType<typeof setTimeout> | undefined
+let stopWatch: (() => void) | undefined
+let cleanupPptPreview: (() => void) | undefined
+function failOpen(error: unknown) {
+    clearTimeout(readyTimer)
+    generation++ // Ignore late ready/error callbacks from this failed editor.
+    loading.value = false
+    loadError.value = true
+    console.error('Failed to open editor:', error)
+    emit('error', error instanceof Error ? error : new Error(String(error)))
+}
 // 设置prop
 const props = defineProps<{
     file: DocmentType
@@ -155,41 +192,37 @@ function handleExternalMessage(event: MessageEvent) {
     }
 }
 
-onMounted(async () => {
-    window.addEventListener('message', handleExternalMessage)
+async function loadDocument() {
+    cleanupPptPreview?.()
+    cleanupPptPreview = undefined
+    const request = ++generation
+    clearTimeout(readyTimer)
     loading.value = true
+    loadError.value = false
+    setLoadingText(OFFICE_INITIALIZING_TEXT)
     try {
-        await initX2TScript()
-        // 加载编辑器API
-        await loadEditorApi()
-        await initX2T()
-        console.log('app has loading')
-        loading.value = false
-        // 页面初始化后，使用 watchEffect 监听 props.file 并执行 openFile
-        // 添加props.file监听
-
-        const stopWatch = watch(
-            () => props.file.fileName,
-            async () => {
-                try {
-                    await openFile()
-                } catch (error) {
-                    console.error('Error opening file:', error)
-                    alert('文件打开失败，请检查文件格式')
-                }
-            },
-            { immediate: true }, // 立即执行一次以处理初始值
-        )
-
-        // 组件卸载时停止监听
-        onBeforeUnmount(stopWatch)
+        // Start listening for WASM readiness immediately, independently of the API request.
+        await Promise.all([initX2T(), loadEditorApi()])
+        if (disposed || request !== generation) return
+        setLoadingText('正在解析文件…')
+        await openFile(request)
     } catch (error) {
-        console.error('Failed to initialize editor:', error)
-        // 错误已在各函数中处理
+        if (!disposed && request === generation) failOpen(error)
     }
+}
+onMounted(() => {
+    window.addEventListener('message', handleExternalMessage)
+    stopWatch = watch(() => props.file, loadDocument, { immediate: true })
+})
+onBeforeUnmount(() => {
+    cleanupPptPreview?.()
+    disposed = true
+    generation++
+    clearTimeout(readyTimer)
+    stopWatch?.()
 })
 // 合并后的文件操作方法
-async function handleDocumentOperation(options: { isNew: boolean; fileName: string; file?: File }) {
+async function handleDocumentOperation(options: { isNew: boolean; fileName: string; file?: File | null }, request: number) {
     try {
         const { isNew, fileName, file } = options
         const fileType = fileName.split('.').pop() || ''
@@ -197,7 +230,7 @@ async function handleDocumentOperation(options: { isNew: boolean; fileName: stri
 
         // 获取文档内容
         let documentData: {
-            bin: ArrayBuffer
+            bin: string | Uint8Array | ArrayBuffer
             media?: any
         }
 
@@ -214,16 +247,16 @@ async function handleDocumentOperation(options: { isNew: boolean; fileName: stri
             documentData = await convertDocument(file)
         }
 
+        if (disposed || request !== generation) return
         // 创建编辑器实例
         createEditorInstance({
             fileName,
             fileType,
             binData: documentData.bin,
             media: documentData.media,
-        })
+        }, request)
     } catch (error: any) {
         console.error('文档操作失败:', error)
-        alert(`文档操作失败: ${error.message}`)
         throw error
     }
 }
@@ -232,9 +265,9 @@ async function handleDocumentOperation(options: { isNew: boolean; fileName: stri
 function createEditorInstance(config: {
     fileName: string
     fileType: string
-    binData: ArrayBuffer
+    binData: string | Uint8Array | ArrayBuffer
     media?: any
-}) {
+}, request: number) {
     // 清理旧编辑器实例
     if (editor.value) {
         editor.value.destroyEditor()
@@ -244,13 +277,20 @@ function createEditorInstance(config: {
     const { fileName, fileType, binData, media } = config
     const editable = props.file.mode !== 'view'
 
-    // PPT 文件默认隐藏左侧缩略图面板（仅首次，之后尊重用户偏好）
+    // 首次采用紧凑布局，后续尊重用户主动调整的工具栏与右侧面板偏好。
     const pptTypes = ['ppt', 'pptx', 'odp', 'pot', 'potx', 'pptm', 'ppsx', 'pps']
-    if (pptTypes.includes(fileType.toLowerCase()) && localStorage.getItem('pe-hidden-leftmenu') === null) {
-        localStorage.setItem('pe-hidden-leftmenu', 'true')
+    if (pptTypes.includes(fileType.toLowerCase()) && !localStorage.getItem('mantis-ppt-layout-defaults-v1')) {
+        localStorage.setItem('pe-hidden-leftmenu', 'false')
+        localStorage.setItem('pe-hidden-rightmenu', 'true')
+        localStorage.setItem('pe-compact-toolbar', 'true')
+        localStorage.setItem('mantis-ppt-layout-defaults-v1', 'true')
     }
 
-    editor.value = new window.DocsAPI.DocEditor('iframe', {
+    setLoadingText('正在打开文档…')
+    readyTimer = setTimeout(() => {
+        if (!disposed && request === generation) failOpen(new Error('文档加载超时'))
+    }, OFFICE_DOCUMENT_TIMEOUT_MS)
+    editor.value = new window.DocsAPI!.DocEditor('iframe', {
         document: {
             title: fileName,
             url: fileName, // 使用文件名作为标识
@@ -285,6 +325,7 @@ function createEditorInstance(config: {
         },
         events: {
             onAppReady: () => {
+                if (disposed || request !== generation) return
                 // 设置媒体资源
                 if (media) {
                     editor.value.sendCommand({
@@ -300,7 +341,21 @@ function createEditorInstance(config: {
                 })
             },
             onDocumentReady: () => {
+                if (disposed || request !== generation) return
+                clearTimeout(readyTimer)
+                if (pptTypes.includes(fileType.toLowerCase())) {
+                    const frame = document.querySelector<HTMLIFrameElement>('iframe[name="frameEditor"]')
+                    if (frame) {
+                        try { cleanupPptPreview = setupPptPreview(frame, editable) }
+                        catch (error) { console.warn('连续预览不可用，保留单页编辑器:', error) }
+                    }
+                }
+                loading.value = false
+                emit('ready')
                 console.log('文档加载完成:', fileName)
+            },
+            onError: () => {
+                if (!disposed && request === generation) failOpen(new Error('编辑器加载失败'))
             },
             onSave: handleSaveDocument,
             // writeFile
@@ -311,50 +366,44 @@ function createEditorInstance(config: {
 }
 
 // 修改后的openFile方法
-async function openFile() {
+async function openFile(request: number) {
     const { fileName, file } = props.file
 
     await handleDocumentOperation({
         isNew: !file, // 根据是否存在file判断是否新建
         fileName,
         file,
-    })
+    }, request)
 }
 
-onBeforeUnmount(() => {
-    // 清理资源
-    if (editor.value) {
-        // 如果编辑器有销毁方法，调用它
-        if (typeof editor.value.destroyEditor === 'function') {
-            editor.value.destroyEditor()
-        }
-    }
-})
-
+let editorApiPromise: Promise<void> | null = null
 function loadEditorApi(): Promise<void> {
-    return new Promise((resolve, reject) => {
-        // 检查是否已加载
-        if (window.DocsAPI) {
-            resolve()
-            return
-        }
-
-        // 加载编辑器API
+    if (window.DocsAPI) return Promise.resolve()
+    if (editorApiPromise) return editorApiPromise
+    editorApiPromise = new Promise<void>((resolve, reject) => {
         const script = document.createElement('script')
         script.src = `./web-apps/apps/api/documents/api.js?v=${import.meta.env.VITE_OFFICE_ASSET_VERSION}`
-        script.onload = () => resolve()
-        script.onerror = (error) => {
-            console.error('Failed to load OnlyOffice API:', error)
-            alert('无法加载编辑器组件。请确保已正确安装 OnlyOffice API。')
-            reject(error)
+        const fail = () => {
+            clearTimeout(timer)
+            script.onload = script.onerror = null
+            script.remove()
+            reject(new Error('无法加载编辑器组件，请重试'))
         }
+        const timer = setTimeout(fail, OFFICE_SCRIPT_TIMEOUT_MS)
+        script.onload = () => {
+            clearTimeout(timer)
+            if (window.DocsAPI) resolve()
+            else fail()
+        }
+        script.onerror = fail
         document.head.appendChild(script)
-    })
+    }).finally(() => { editorApiPromise = null })
+    return editorApiPromise
 }
 
 interface SaveEvent {
     data: {
-        data: string
+        data: { data: Uint8Array }
         option: any
     }
 }
@@ -374,6 +423,12 @@ async function handleSaveDocument(event: SaveEvent) {
     const targetExt: string = c_oAscFileType2[option.outputformat] ?? 'DOCX'
     const saveUrl: string | undefined = props.file.saveUrl
 
+    const notifySave = (status: 'saving' | 'saved' | 'error') => {
+        if (saveUrl && window.parent !== window) {
+            window.parent.postMessage({ type: 'mantis-office-save-status', status }, '*')
+        }
+    }
+    notifySave('saving')
     try {
         if (saveUrl) {
             // ── 有 saveUrl：转换后回写服务器，不触发浏览器下载 ──
@@ -393,7 +448,9 @@ async function handleSaveDocument(event: SaveEvent) {
             ElMessage({ type: 'info', message: '文件已导出到本地，未回写服务器', duration: 3000 })
         }
         editor.value.sendCommand({ command: 'asc_onSaveCallback', data: { err_code: 0 } })
+        notifySave('saved')
     } catch (err: any) {
+        notifySave('error')
         const msg = err?.message ?? String(err)
         console.error('[Save] 保存失败:', msg)
         ElMessage({ type: 'error', message: `保存失败：${msg}`, duration: 4000 })
@@ -484,7 +541,7 @@ function handleWriteFile(event: any) {
                 command: 'asc_writeFileCallback',
                 data: {
                     success: false,
-                    error: error.message,
+                    error: error instanceof Error ? error.message : String(error),
                 },
             })
         }
@@ -492,7 +549,7 @@ function handleWriteFile(event: any) {
         if (event.callback && typeof event.callback === 'function') {
             event.callback({
                 success: false,
-                error: error.message,
+                error: error instanceof Error ? error.message : String(error),
             })
         }
     }
@@ -534,6 +591,7 @@ onBeforeUnmount(() => {
     if (editor.value) {
         if (typeof editor.value.destroyEditor === 'function') {
             editor.value.destroyEditor()
+            editor.value = null
         }
     }
 })
@@ -543,10 +601,19 @@ onBeforeUnmount(() => {
 .editor-container {
     width: 100%;
     height: 100vh;
+    position: relative;
 }
 
 #iframe {
     width: 100%;
     height: 100%;
 }
+</style>
+
+<style scoped>
+.editor-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; background: #f8fafc; color: #334155; text-align: center; z-index: 10; }
+.loading-spinner { width: 36px; height: 36px; border: 4px solid #dbeafe; border-top-color: #2563eb; border-radius: 50%; animation: preview-spin 1s linear infinite; }
+@keyframes preview-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loading-spinner { animation: none; } }
+.editor-error { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: white; z-index: 10; }
 </style>

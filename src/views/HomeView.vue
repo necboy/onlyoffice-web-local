@@ -8,6 +8,7 @@
       :stage-progress="urlLoading.stageProgress"
       :file-name="urlLoading.fileName"
       :file-type="urlLoading.fileType"
+      :status-text="urlLoading.stageIndex === 2 ? loadingMessage : undefined"
     />
 
     <!-- 顶部操作区域 -->
@@ -20,6 +21,9 @@
         style="height: 100%; width: 100%"
         :file="docmentObj"
         ref="documentHandler"
+        @loading="loadingMessage = $event"
+        @ready="urlLoading.visible = false"
+        @error="urlLoading.visible = false"
       />
       <!-- 主要内容区域 -->
       <div class="main-content" v-else>
@@ -77,9 +81,11 @@ import { DocmentType } from '@/utils/util'
 import DocumentHandler from '../components/DocumentHandler.vue'
 import LoadingProgress, { type LoadingStage } from '../components/LoadingProgress.vue'
 import { useRoute } from 'vue-router'
+import { initX2T } from '@/utils/x2t'
 
 const showCreateDialog = ref(false)
 const docmentObj = ref<DocmentType | null>(null)
+const loadingMessage = ref('')
 const loadError = reactive({
   visible: false,
   title: '',
@@ -186,6 +192,10 @@ async function initFileUrl() {
   urlLoading.visible = true
   setStage(0, 0)
 
+  // 与文件下载并行预热；DocumentHandler 复用同一个初始化 Promise。
+  // 预热失败由正式打开流程重试和呈现错误，避免未处理的 Promise 拒绝。
+  void initX2T().catch(err => console.warn('预览组件预加载失败，将在打开时重试:', err))
+
   try {
     // ── 阶段 0：下载文件（流式感知真实进度）──
     const res = await fetch(url)
@@ -266,11 +276,6 @@ async function initFileUrl() {
     docmentObj.value = { fileName, file, saveUrl, mode }
     showCreateDialog.value = false
 
-    // 短暂延迟后关闭，让用户看到"完成"状态
-    setTimeout(() => {
-      urlLoading.stageProgress = 100
-      setTimeout(() => { urlLoading.visible = false }, 400)
-    }, 300)
   } catch (err) {
     console.error('加载文件失败:', err)
     urlLoading.visible = false

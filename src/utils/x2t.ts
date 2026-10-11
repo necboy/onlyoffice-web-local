@@ -1,3 +1,4 @@
+import { OFFICE_SCRIPT_TIMEOUT_MS, OFFICE_RUNTIME_TIMEOUT_MS } from './office-loading'
 // types/x2t.d.ts - 类型定义文件
 interface EmscriptenFileSystem {
     mkdir(path: string): void
@@ -9,7 +10,8 @@ interface EmscriptenFileSystem {
 interface EmscriptenModule {
     FS: EmscriptenFileSystem
     ccall: (funcName: string, returnType: string, argTypes: string[], args: any[]) => number
-    onRuntimeInitialized: () => void
+    onRuntimeInitialized?: () => void
+    calledRun?: boolean
 }
 
 interface ConversionResult {
@@ -53,6 +55,7 @@ class X2TConverter {
     private isReady = false
     private initPromise: Promise<EmscriptenModule> | null = null
     private hasScriptLoaded = false
+    private scriptPromise: Promise<void> | null = null
 
     // 支持的文件类型映射
     private readonly DOCUMENT_TYPE_MAP: Record<string, DocumentType> = {
@@ -77,31 +80,38 @@ class X2TConverter {
         '/working/themes',
     ]
     private readonly SCRIPT_PATH = './wasm/x2t/x2t.js'
-    private readonly INIT_TIMEOUT = 30000
+    private readonly INIT_TIMEOUT = OFFICE_RUNTIME_TIMEOUT_MS
 
     /**
      * 加载 X2T 脚本文件
      */
     async loadScript(): Promise<void> {
         if (this.hasScriptLoaded) return
-
-        return new Promise((resolve, reject) => {
+        if (this.scriptPromise) return this.scriptPromise
+        this.scriptPromise = new Promise<void>((resolve, reject) => {
             const script = document.createElement('script')
             script.src = this.SCRIPT_PATH
+            const fail = () => {
+                clearTimeout(timer)
+                script.onload = script.onerror = null
+                script.remove()
+                reject(new Error('Failed to load X2T WASM script'))
+            }
+            const timer = setTimeout(fail, OFFICE_SCRIPT_TIMEOUT_MS)
             script.onload = () => {
+                clearTimeout(timer)
                 this.hasScriptLoaded = true
                 console.log('X2T WASM script loaded successfully')
                 resolve()
             }
-
-            script.onerror = (error) => {
-                const errorMsg = 'Failed to load X2T WASM script'
-                console.error(errorMsg, error)
-                reject(new Error(errorMsg))
-            }
-
+            script.onerror = fail
             document.head.appendChild(script)
         })
+        try {
+            await this.scriptPromise
+        } finally {
+            this.scriptPromise = null
+        }
     }
 
     /**
@@ -117,7 +127,7 @@ class X2TConverter {
             return this.initPromise
         }
 
-                this.initPromise = this.doInitialize()
+        this.initPromise = this.doInitialize()
         return this.initPromise
     }
 
@@ -126,7 +136,7 @@ class X2TConverter {
             // 确保脚本已加载
             await this.loadScript()
 
-            return new Promise((resolve, reject) => {
+            return await new Promise((resolve, reject) => {
                 const x2t = window.Module
                 if (!x2t) {
                     reject(new Error('X2T module not found after script loading'))
@@ -136,13 +146,16 @@ class X2TConverter {
                 // 设置超时处理
                 const timeoutId = setTimeout(() => {
                     if (!this.isReady) {
+                        x2t.onRuntimeInitialized = previousReady
                         reject(new Error(`X2T initialization timeout after ${this.INIT_TIMEOUT}ms`))
                     }
                 }, this.INIT_TIMEOUT)
 
-                x2t.onRuntimeInitialized = () => {
+                const previousReady = x2t.onRuntimeInitialized
+                const ready = () => {
                     try {
                         clearTimeout(timeoutId)
+                        x2t.onRuntimeInitialized = previousReady
                         this.createWorkingDirectories(x2t)
                         this.x2tModule = x2t
                         this.isReady = true
@@ -152,6 +165,13 @@ class X2TConverter {
                         reject(error)
                     }
                 }
+                // Script loading and runtime initialization are separate events.
+                // A cached/fast WASM may have finished before this listener is installed.
+                x2t.onRuntimeInitialized = () => {
+                    previousReady?.()
+                    ready()
+                }
+                if (x2t.calledRun) ready()
             })
         } catch (error) {
             this.initPromise = null // 重置以允许重试

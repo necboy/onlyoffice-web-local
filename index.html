@@ -1,13 +1,26 @@
 <!doctype html>
-<html lang="">
+<html lang="zh-CN">
     <head>
         <meta charset="UTF-8" />
         <link rel="icon" href="/icon.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Local office</title>
+        <style>
+            .office-startup { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; background: #f8fafc; color: #334155; font: 16px/1.6 system-ui, sans-serif; text-align: center; }
+            .office-startup p { margin: 0; color: #64748b; font-size: 14px; }
+            .office-startup-spinner { width: 36px; height: 36px; border: 4px solid #dbeafe; border-top-color: #2563eb; border-radius: 50%; animation: office-startup-spin 1s linear infinite; }
+            @keyframes office-startup-spin { to { transform: rotate(360deg); } }
+            @media (prefers-reduced-motion: reduce) { .office-startup-spinner { animation: none; } }
+        </style>
     </head>
     <body>
-        <div id="app"></div>
+        <div id="app">
+            <div role="status" aria-live="polite" class="office-startup">
+                <div class="office-startup-spinner" aria-hidden="true"></div>
+                <strong>正在加载文档预览…</strong>
+                <p>首次打开或网速较慢时可能需要几分钟，请稍候。</p>
+            </div>
+        </div>
         <script type="module" src="/src/main.ts"></script>
     </body>
 </html>
