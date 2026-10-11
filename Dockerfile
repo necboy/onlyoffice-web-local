@@ -1,5 +1,8 @@
-# 使用阿里云 Docker Hub 镜像，避免 buildx 容器内访问 docker.io 超时
-FROM docker.m.daocloud.io/library/node:20-alpine AS build-stage
+# 基础镜像可通过 --build-arg 覆盖，避免单个镜像站不可用时阻塞发布
+ARG NODE_BASE_IMAGE=docker.io/library/node:20-alpine
+ARG NGINX_BASE_IMAGE=docker.io/library/nginx:1.19.1-alpine
+
+FROM ${NODE_BASE_IMAGE} AS build-stage
 
 WORKDIR /app
 RUN corepack enable
@@ -14,7 +17,7 @@ COPY . .
 RUN pnpm build
 
 # 若要开启gzip请将nginx镜像改为完整包
-FROM docker.m.daocloud.io/library/nginx:1.19.1-alpine AS production-stage
+FROM ${NGINX_BASE_IMAGE} AS production-stage
 
 COPY --from=build-stage /app/html /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf

@@ -149,6 +149,7 @@ function handleExternalMessage(event: MessageEvent) {
         if (!text?.trim()) return
         navigateToText(text.trim())
     } else if (type === 'EDITOR_REPLACE_TEXT') {
+        if (props.file.mode === 'view') return
         if (!original || replacement == null) return
         replaceTextInEditor(original, replacement)
     }
@@ -241,6 +242,7 @@ function createEditorInstance(config: {
     }
 
     const { fileName, fileType, binData, media } = config
+    const editable = props.file.mode !== 'view'
 
     // PPT 文件默认隐藏左侧缩略图面板（仅首次，之后尊重用户偏好）
     const pptTypes = ['ppt', 'pptx', 'odp', 'pot', 'potx', 'pptm', 'ppsx', 'pps']
@@ -254,12 +256,14 @@ function createEditorInstance(config: {
             url: fileName, // 使用文件名作为标识
             fileType: fileType,
             permissions: {
-                edit: true,
+                edit: editable,
                 chat: false,
                 protect: false,
             },
         },
         editorConfig: {
+            assetVersion: import.meta.env.VITE_OFFICE_ASSET_VERSION,
+            mode: editable ? 'edit' : 'view',
             lang: 'zh',
             customization: {
                 help: false,
@@ -337,7 +341,7 @@ function loadEditorApi(): Promise<void> {
 
         // 加载编辑器API
         const script = document.createElement('script')
-        script.src = './web-apps/apps/api/documents/api.js'
+        script.src = `./web-apps/apps/api/documents/api.js?v=${import.meta.env.VITE_OFFICE_ASSET_VERSION}`
         script.onload = () => resolve()
         script.onerror = (error) => {
             console.error('Failed to load OnlyOffice API:', error)
@@ -356,6 +360,11 @@ interface SaveEvent {
 }
 
 async function handleSaveDocument(event: SaveEvent) {
+    if (props.file.mode === 'view') {
+        ElMessage({ type: 'warning', message: '当前为只读预览，请先点击编辑文件', duration: 3000 })
+        editor.value.sendCommand({ command: 'asc_onSaveCallback', data: { err_code: 1 } })
+        return
+    }
     if (!event.data?.data) {
         editor.value.sendCommand({ command: 'asc_onSaveCallback', data: { err_code: 0 } })
         return
@@ -376,19 +385,20 @@ async function handleSaveDocument(event: SaveEvent) {
             const res = await fetch(saveUrl, { method: 'POST', body: formData })
             if (!res.ok) throw new Error(`服务器响应 ${res.status}`)
 
-            console.log('[Save] 已回写服务器:', saveUrl)
+            console.log('[Save] 已回写服务器')
             ElMessage({ type: 'success', message: '文件已保存', duration: 2000 })
         } else {
             // ── 无 saveUrl：原有本地下载逻辑 ──
             await convertBinToDocumentAndDownload(data.data, props.file.fileName, targetExt)
+            ElMessage({ type: 'info', message: '文件已导出到本地，未回写服务器', duration: 3000 })
         }
+        editor.value.sendCommand({ command: 'asc_onSaveCallback', data: { err_code: 0 } })
     } catch (err: any) {
         const msg = err?.message ?? String(err)
         console.error('[Save] 保存失败:', msg)
         ElMessage({ type: 'error', message: `保存失败：${msg}`, duration: 4000 })
+        editor.value.sendCommand({ command: 'asc_onSaveCallback', data: { err_code: 1 } })
     }
-
-    editor.value.sendCommand({ command: 'asc_onSaveCallback', data: { err_code: 0 } })
 }
 
 // 辅助函数：将base64转为Blob
@@ -540,4 +550,3 @@ onBeforeUnmount(() => {
     height: 100%;
 }
 </style>
-

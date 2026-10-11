@@ -162,6 +162,9 @@ async function initFileUrl() {
   const url = (route.query.url as string | undefined) ?? searchParams.get('url') ?? undefined
   const filenameParam = (route.query.filename as string | undefined) ?? searchParams.get('filename') ?? undefined
   const saveUrl = (route.query.saveurl as string | undefined) ?? searchParams.get('saveurl') ?? undefined
+  const requestedMode = route.query.mode ?? searchParams.get('mode')
+  // 单机文档默认可编辑；调用方仍可按共享权限显式要求只读。
+  const mode = requestedMode === 'view' ? 'view' : 'edit'
   if (!url) {
     console.warn('未提供文件 URL')
     return
@@ -260,7 +263,7 @@ async function initFileUrl() {
 
     // ── 阶段 2：打开文档 ──
     setStage(2, -1)
-    docmentObj.value = { fileName, file, saveUrl }
+    docmentObj.value = { fileName, file, saveUrl, mode }
     showCreateDialog.value = false
 
     // 短暂延迟后关闭，让用户看到"完成"状态

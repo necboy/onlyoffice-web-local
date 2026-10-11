@@ -56,6 +56,8 @@ make release
 | `PLATFORMS` | `linux/amd64,linux/arm64` | 构建目标平台 |
 | `REGISTRY` | `docker.dsai.vip` | 镜像仓库地址 |
 | `NAMESPACE` | `mantis` | 仓库命名空间 |
+| `NODE_BASE_IMAGE` | `docker.io/library/node:20-alpine` | Node 构建基础镜像 |
+| `NGINX_BASE_IMAGE` | `docker.io/library/nginx:1.19.1-alpine` | Nginx 运行基础镜像 |
 
 ---
 
@@ -70,6 +72,9 @@ make release VERSION=2.0.0
 
 # 仅构建 amd64 架构
 make release PLATFORMS=linux/amd64
+
+# 使用指定镜像站的基础镜像
+make release NODE_BASE_IMAGE=registry/library/node:20-alpine NGINX_BASE_IMAGE=registry/library/nginx:1.19.1-alpine
 
 # 将 1.2.0 重新标记为 latest
 make tag-latest VERSION=1.2.0
@@ -100,3 +105,11 @@ make build   # 构建并 load 到本地 Docker，不推送
 # 修改 package.json 中的 version 字段后
 make release   # 自动使用新版本号
 ```
+
+## CDN 缓存与 HTTPS 预览
+
+构建会根据内置编辑器脚本生成资源版本，贯穿 API 脚本、编辑器 iframe 的 `_dc` 参数和 RequireJS 的 `v` 参数，避免发布后浏览器继续命中旧版 gzip 缓存。请重新构建并部署完整产物；首次启用时同时清理 CDN 中 `/web-apps/` 下已有缓存（包括 gzip 变体）。
+
+外部系统生成预览链接时，HTTPS 页面中的 `url` 参数也必须指向 HTTPS 文件下载地址。即使 HTTP 下载地址会重定向到 HTTPS，浏览器仍可能在发起请求前阻止它；在新窗口打开也不能修复该问题。
+
+若控制台出现 `/fonts/<编号>` 的 404，请检查部署产物中是否存在 `sdkjs/common/AllFonts.js` 所引用的对应字体文件。仓库只包含部分字体，补充字体时需使用有授权的文件。

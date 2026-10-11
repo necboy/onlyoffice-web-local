@@ -14,6 +14,10 @@ PLATFORMS       ?= linux/amd64,linux/arm64
 # buildx builder 名称
 BUILDER         := multiarch-builder
 
+# 基础镜像，可按网络情况覆盖为可用镜像站
+NODE_BASE_IMAGE  ?= docker.io/library/node:20-alpine
+NGINX_BASE_IMAGE ?= docker.io/library/nginx:1.19.1-alpine
+
 # 阿里云镜像仓库（可通过环境变量覆盖）
 ALIYUN_REGISTRY ?= crpi-uhlkn5owwv2a1uox.cn-shanghai.personal.cr.aliyuncs.com
 ALIYUN_IMAGE    := $(ALIYUN_REGISTRY)/$(NAMESPACE)/$(IMAGE_NAME)
@@ -40,12 +44,15 @@ help:
 	@echo "    PLATFORMS        构建平台 (当前: $(PLATFORMS))"
 	@echo "    REGISTRY         源仓库 (当前: $(REGISTRY))"
 	@echo "    ALIYUN_REGISTRY  阿里云仓库 (当前: $(ALIYUN_REGISTRY))"
+	@echo "    NODE_BASE_IMAGE  Node 基础镜像 (当前: $(NODE_BASE_IMAGE))"
+	@echo "    NGINX_BASE_IMAGE Nginx 基础镜像 (当前: $(NGINX_BASE_IMAGE))"
 	@echo ""
 	@echo "  示例:"
 	@echo "    make setup                                        # 初始化 buildx (首次)"
 	@echo "    make release                                      # 发布 v$(VERSION) 多架构镜像"
 	@echo "    make release VERSION=2.0.0                        # 指定版本号发布"
 	@echo "    make release PLATFORMS=linux/amd64                # 仅发布单架构"
+	@echo "    make release NODE_BASE_IMAGE=registry/library/node:20-alpine NGINX_BASE_IMAGE=registry/library/nginx:1.19.1-alpine"
 	@echo "    make sync-to-aliyun                               # 同步最新版本到阿里云"
 	@echo "    make sync-to-aliyun VERSION=1.0.0                 # 同步指定版本到阿里云"
 	@echo ""
@@ -71,6 +78,8 @@ build:
 	@echo ">>> 本地构建 (单架构): $(FULL_IMAGE):$(VERSION)"
 	docker build \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--build-arg NODE_BASE_IMAGE=$(NODE_BASE_IMAGE) \
+		--build-arg NGINX_BASE_IMAGE=$(NGINX_BASE_IMAGE) \
 		-t $(FULL_IMAGE):$(VERSION) \
 		-t $(FULL_IMAGE):latest \
 		.
@@ -84,6 +93,8 @@ release:
 		--builder $(BUILDER) \
 		--platform $(PLATFORMS) \
 		--build-arg BUILDKIT_INLINE_CACHE=1 \
+		--build-arg NODE_BASE_IMAGE=$(NODE_BASE_IMAGE) \
+		--build-arg NGINX_BASE_IMAGE=$(NGINX_BASE_IMAGE) \
 		-t $(FULL_IMAGE):$(VERSION) \
 		-t $(FULL_IMAGE):latest \
 		--push \

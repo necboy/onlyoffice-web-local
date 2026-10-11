@@ -363,7 +363,7 @@ class X2TConverter {
 
             // 下载文件
             // TODO: 完善打印功能
-            this.saveWithFileSystemAPI(result, outputFileName)
+            await this.saveWithFileSystemAPI(result, outputFileName)
 
             return {
                 fileName: outputFileName,
@@ -465,7 +465,8 @@ class X2TConverter {
         fileName: string,
         mimeType?: string,
     ): Promise<void> {
-        if (!(window as any).showSaveFilePicker) {
+        // iframe 中文件选择器可能被浏览器阻止，直接使用下载方式导出副本。
+        if (window.self !== window.top || !(window as any).showSaveFilePicker) {
             this.downloadFile(data, fileName)
             return
         }
@@ -496,7 +497,6 @@ class X2TConverter {
         } catch (error) {
             if ((error as Error).name === 'AbortError') {
                 console.log('User cancelled the save operation')
-                return
             }
             throw error
         }
