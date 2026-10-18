@@ -32,6 +32,7 @@ export function injectFavicon(path: string): void {
   }
 }
 export type DocmentType = {
+  review?: import('./office-review').ReviewBinding;
   fileName: string;
   file: File | null;
   saveUrl?: string;  // 有值时 Ctrl+S 回写到服务器，否则下载到本地

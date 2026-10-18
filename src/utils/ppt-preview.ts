@@ -1,5 +1,5 @@
 /** 连续预览复用当前随服务发布的 PPT SDK 渲染器，不另行下载或转换文件。 */
-export function setupPptPreview(frame: HTMLIFrameElement, editable = true): () => void {
+export function setupPptPreview(frame: HTMLIFrameElement, editable = true, onReviewPage?: (index: number) => void, onReviewMode?: (active: boolean, index?: number) => void): () => void {
   const win = frame.contentWindow as any
   const doc = frame.contentDocument
   const api = win?.PE?.getController('Main')?.api
@@ -23,6 +23,8 @@ export function setupPptPreview(frame: HTMLIFrameElement, editable = true): () =
     .ppt-reading-bar button { border:1px solid #ccc; border-radius:4px; background:#fff; padding:4px 8px; cursor:pointer; color:#333; }
     .ppt-reading-pages { overflow:auto; flex:1; min-height:0; padding:12px; overscroll-behavior:contain; }
     .ppt-reading-page { margin:0 0 16px; }
+    .ppt-reading-page[role=button] { cursor:pointer; border-radius:3px; outline-offset:3px; }
+    .ppt-reading-page[aria-pressed=true], .ppt-reading-page[role=button]:focus-visible { outline:2px solid #2563eb; }
     .ppt-reading-page canvas { display:block; width:100%; background:#fff; box-shadow:0 1px 5px #0003; }
     .ppt-reading-page figcaption { text-align:center; font-size:12px; padding-top:5px; color:#555; }
     .ppt-reading-return { position:absolute; top:6px; right:18px; z-index:6; border:1px solid #ccc; border-radius:4px; background:#fff; padding:5px 8px; cursor:pointer; }
@@ -34,7 +36,7 @@ export function setupPptPreview(frame: HTMLIFrameElement, editable = true): () =
   const bar = doc.createElement('div')
   bar.className = 'ppt-reading-bar'
   const title = doc.createElement('span')
-  title.textContent = '连续预览 · 滚动查看多页'
+  title.textContent = onReviewPage ? '连续预览 · 点击定位页面，双击选择组件' : '连续预览 · 滚动查看多页'
   const single = doc.createElement('button')
   single.textContent = editable ? '单页 / 编辑' : '单页预览'
   bar.append(title, single)
@@ -49,6 +51,7 @@ export function setupPptPreview(frame: HTMLIFrameElement, editable = true): () =
   let disposed = false
   let raf = 0
   let active = true
+  let selectedIndex: number | null = null
   const canvases: HTMLCanvasElement[] = []
   const render = (canvas: HTMLCanvasElement) => {
     const width = Math.max(1, pages.clientWidth - 24)
@@ -98,6 +101,7 @@ export function setupPptPreview(frame: HTMLIFrameElement, editable = true): () =
     root.style.display = value ? 'flex' : 'none'
     back.hidden = value
     if (value) {
+      selectedIndex = api.getCurrentPage()
       pages.replaceChildren()
       canvases.length = 0
       for (let index = 0; index < api.getCountPages(); index++) {
@@ -110,14 +114,33 @@ export function setupPptPreview(frame: HTMLIFrameElement, editable = true): () =
         const caption = doc!.createElement('figcaption')
         caption.textContent = `${index + 1} / ${api.getCountPages()}`
         figure.append(canvas, caption)
+        figure.onclick = () => {
+          if (onReviewPage) {
+            for (const item of pages.querySelectorAll('.ppt-reading-page[role=button]')) item.setAttribute('aria-pressed', item === figure ? 'true' : 'false')
+            selectedIndex = index
+            onReviewPage(index)
+          }
+        }
         figure.ondblclick = () => { setActive(false); api.goToPage(index) }
+        if (onReviewPage) {
+          figure.tabIndex = 0
+          figure.setAttribute('aria-pressed', selectedIndex === index ? 'true' : 'false')
+          figure.setAttribute('role', 'button')
+          figure.setAttribute('aria-label', `选择第 ${index + 1} 页，双击或按回车进入单页选择组件`)
+          figure.onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); setActive(false); api.goToPage(index) } }
+        }
         pages.append(figure)
         canvases.push(canvas)
       }
       schedule()
     }
+    onReviewMode?.(value, value ? selectedIndex ?? undefined : undefined)
   }
-  single.onclick = () => setActive(false)
+  single.onclick = () => {
+    const index = selectedIndex ?? api.getCurrentPage()
+    setActive(false)
+    api.goToPage(index)
+  }
   back.onclick = () => setActive(true)
   // 编辑、查找或缩略图跳转时回到原生单页界面，避免操作被预览遮挡。
   const onTools = (event: Event) => {

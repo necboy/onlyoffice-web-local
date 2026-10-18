@@ -82,6 +82,7 @@ import DocumentHandler from '../components/DocumentHandler.vue'
 import LoadingProgress, { type LoadingStage } from '../components/LoadingProgress.vue'
 import { useRoute } from 'vue-router'
 import { initX2T } from '@/utils/x2t'
+import { parseReviewBinding } from '@/utils/office-review'
 
 const showCreateDialog = ref(false)
 const docmentObj = ref<DocmentType | null>(null)
@@ -169,6 +170,7 @@ async function initFileUrl() {
   const filenameParam = (route.query.filename as string | undefined) ?? searchParams.get('filename') ?? undefined
   const saveUrl = (route.query.saveurl as string | undefined) ?? searchParams.get('saveurl') ?? undefined
   const requestedMode = route.query.mode ?? searchParams.get('mode')
+  const review = parseReviewBinding(route.query.reviewId ?? searchParams.get('reviewId'), route.query.reviewKey ?? searchParams.get('reviewKey'), route.query.reviewOrigin ?? searchParams.get('reviewOrigin'))
   // 单机文档默认可编辑；调用方仍可按共享权限显式要求只读。
   const mode = requestedMode === 'view' ? 'view' : 'edit'
   if (!url) {
@@ -273,7 +275,7 @@ async function initFileUrl() {
 
     // ── 阶段 2：打开文档 ──
     setStage(2, -1)
-    docmentObj.value = { fileName, file, saveUrl, mode }
+    docmentObj.value = { fileName, file, saveUrl, mode, review }
     showCreateDialog.value = false
 
   } catch (err) {

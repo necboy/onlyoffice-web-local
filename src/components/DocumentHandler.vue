@@ -17,6 +17,7 @@ import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { getDocumentType, DocmentType } from '@/utils/util'
 import { g_sEmpty_bin } from '@/utils/empty_bin'
 import { OFFICE_SCRIPT_TIMEOUT_MS, OFFICE_DOCUMENT_TIMEOUT_MS, OFFICE_INITIALIZING_TEXT } from '@/utils/office-loading'
+import { setupOfficeReview } from '@/utils/office-review'
 import { setupPptPreview } from '@/utils/ppt-preview'
 declare global {
     interface Window {
@@ -47,6 +48,7 @@ let generation = 0
 let readyTimer: ReturnType<typeof setTimeout> | undefined
 let stopWatch: (() => void) | undefined
 let cleanupPptPreview: (() => void) | undefined
+let reviewBridge: ReturnType<typeof setupOfficeReview> | undefined
 function failOpen(error: unknown) {
     clearTimeout(readyTimer)
     generation++ // Ignore late ready/error callbacks from this failed editor.
@@ -193,6 +195,8 @@ function handleExternalMessage(event: MessageEvent) {
 }
 
 async function loadDocument() {
+    reviewBridge?.dispose()
+    reviewBridge = undefined
     cleanupPptPreview?.()
     cleanupPptPreview = undefined
     const request = ++generation
@@ -215,6 +219,8 @@ onMounted(() => {
     stopWatch = watch(() => props.file, loadDocument, { immediate: true })
 })
 onBeforeUnmount(() => {
+    reviewBridge?.dispose()
+    reviewBridge = undefined
     cleanupPptPreview?.()
     disposed = true
     generation++
@@ -346,7 +352,12 @@ function createEditorInstance(config: {
                 if (pptTypes.includes(fileType.toLowerCase())) {
                     const frame = document.querySelector<HTMLIFrameElement>('iframe[name="frameEditor"]')
                     if (frame) {
-                        try { cleanupPptPreview = setupPptPreview(frame, editable) }
+                        try {
+                          reviewBridge = setupOfficeReview(frame, props.file.review)
+                          cleanupPptPreview = setupPptPreview(frame, editable,
+                            props.file.review ? index => reviewBridge?.selectPage(index) : undefined,
+                            props.file.review ? (active, index) => reviewBridge?.setPreviewMode(active, index) : undefined)
+                        }
                         catch (error) { console.warn('连续预览不可用，保留单页编辑器:', error) }
                     }
                 }
