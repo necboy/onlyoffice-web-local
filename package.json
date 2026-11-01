@@ -17,10 +17,13 @@
   "homepage": "https://sweetwisdom.github.io/onlyoffice-web-local/",
     "scripts": {
         "dev": "vite",
-        "build": "vite build",
+        "build": "node scripts/fonts.mjs check && vite build",
+        "fonts:import": "node scripts/fonts.mjs import",
+        "fonts:check": "node scripts/fonts.mjs check",
+        "fonts:download": "node scripts/download-fonts.mjs",
         "preview": "vite preview",
         "test:e2e": "playwright test",
-        "build-only": "vite build",
+        "build-only": "node scripts/fonts.mjs check && vite build",
         "type-check": "vue-tsc --build",
         "format": "prettier --write src/"
     },

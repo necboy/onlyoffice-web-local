@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "notice": "Download provenance is not a license grant.",
+  "fonts": [
+    {
+      "file": "calibri.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/calibri.ttf",
+      "bytes": 940484,
+      "sha256": "72af985bf4cd4580882682a9b0e62b281e3668984f9b76d562525a5a30abfc7e",
+      "families": [
+        "Calibri"
+      ]
+    },
+    {
+      "file": "calibrib.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/calibrib.ttf",
+      "bytes": 903960,
+      "sha256": "0d53ac794d43899fb096f6e871cfdddb0885e5ff9c39052877d03bec2757b175",
+      "families": [
+        "Calibri"
+      ]
+    },
+    {
+      "file": "calibrii.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/calibrii.ttf",
+      "bytes": 997180,
+      "sha256": "3182dadc0816e11f11d09b83b5fdf72b94cb1573ef20e105cc3fd51beb067cf0",
+      "families": [
+        "Calibri"
+      ]
+    },
+    {
+      "file": "calibril.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/calibril.ttf",
+      "bytes": 808104,
+      "sha256": "162c6a27b253e5a65e0b509d8b76c5d74be1c70871ad831228e65e181daa8e76",
+      "families": [
+        "Calibri Light"
+      ]
+    },
+    {
+      "file": "calibrili.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/calibrili.ttf",
+      "bytes": 922760,
+      "sha256": "f315f9a6fe154c05608a059d1b22d7b3160e574b4f84cd3eccef695a3ca21f05",
+      "families": [
+        "Calibri Light"
+      ]
+    },
+    {
+      "file": "calibriz.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/calibriz.ttf",
+      "bytes": 957668,
+      "sha256": "f8e6090befa4d5b9a6cfb82c12f5cb33b545aff587123c3bfe80ba56853681bd",
+      "families": [
+        "Calibri"
+      ]
+    },
+    {
+      "file": "cambria.ttc",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/cambria.ttc",
+      "bytes": 1711796,
+      "sha256": "ac06c0cf6837515d67301d927d844edf1c93c01357cccfc157b5e7c20bcee096",
+      "families": [
+        "Cambria",
+        "Cambria Math"
+      ]
+    },
+    {
+      "file": "cambriab.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/cambriab.ttf",
+      "bytes": 796632,
+      "sha256": "3d77eb209be61eb56faca225e6b5c7f47f3f5e3a9e773671bb9d988f9fa36410",
+      "families": [
+        "Cambria"
+      ]
+    },
+    {
+      "file": "cambriai.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/cambriai.ttf",
+      "bytes": 843772,
+      "sha256": "488bee9b7c21647d50576852524ecc7e5df66fd742aa4f02478f7f232a369a0d",
+      "families": [
+        "Cambria"
+      ]
+    },
+    {
+      "file": "cambriaz.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/cambriaz.ttf",
+      "bytes": 809752,
+      "sha256": "9832e8ff1f087a6c54b4f2062de1b348c2e09939a7d0c5deea5ea4bd72b82c54",
+      "families": [
+        "Cambria"
+      ]
+    },
+    {
+      "file": "times.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/times.ttf",
+      "bytes": 1006088,
+      "sha256": "bd03fb7335c725148e192765164dd6efdb6841fd9fc889fcb3b573f00a316193",
+      "families": [
+        "Times New Roman"
+      ]
+    },
+    {
+      "file": "timesbd.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/timesbd.ttf",
+      "bytes": 991536,
+      "sha256": "f05eadb4f753e9a1a3bd5d9aac5d0ea503d8000988f9715634c9f93baaf2c395",
+      "families": [
+        "Times New Roman"
+      ]
+    },
+    {
+      "file": "timesbi.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/timesbi.ttf",
+      "bytes": 754428,
+      "sha256": "73d8012b9dc0f531e7f18c62c61f9a602b41baefa65fe54b3b45ac923ee5dbe2",
+      "families": [
+        "Times New Roman"
+      ]
+    },
+    {
+      "file": "timesi.ttf",
+      "source": "https://raw.githubusercontent.com/taveevut/Windows-10-Fonts-Default/33c53b34c725dbaf3d85c047456268c458a1df80/timesi.ttf",
+      "bytes": 811348,
+      "sha256": "115d6e3283508911e303a1d2e72e2ada77c3a0be14d8d61877506c765e285a59",
+      "families": [
+        "Times New Roman"
+      ]
+    }
+  ]
+}

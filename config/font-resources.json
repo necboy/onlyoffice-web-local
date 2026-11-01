@@ -1,0 +1,305 @@
+{
+  "version": 1,
+  "resources": [
+    {
+      "id": "070",
+      "name": "Deng.ttf",
+      "bytes": 16315640,
+      "sha256": "e82a6613d9eb799ef87028d4d96ab3314554b5854ef3d18c8ae11c62b0845581"
+    },
+    {
+      "id": "071",
+      "name": "Dengb.ttf",
+      "bytes": 16385568,
+      "sha256": "692a115e22104a800afc2412b2517d46cf21705d37e5aef836132fc63c7e3e62"
+    },
+    {
+      "id": "072",
+      "name": "Dengl.ttf",
+      "bytes": 15372120,
+      "sha256": "5212626ef0122931098e7b619e207835ded351a0f950dfb6f9702bc1699364ac"
+    },
+    {
+      "id": "087",
+      "name": "FZSTK.TTF",
+      "bytes": 7574196,
+      "sha256": "876632917d76269510476b94a38b176556ada80b16cee0124d7594b120a55bd4"
+    },
+    {
+      "id": "088",
+      "name": "FZYTK.TTF",
+      "bytes": 3241748,
+      "sha256": "fafd29390a2fba144a7a017d512335fb5ae660484b7a079a4d26ad6e18f1680e"
+    },
+    {
+      "id": "191",
+      "name": "SIMLI.TTF",
+      "bytes": 9223160,
+      "sha256": "380c7d8ed868cac6210603a0d8ced4074b4a70d79316064188cfd6c08b47b007"
+    },
+    {
+      "id": "192",
+      "name": "SIMYOU.TTF",
+      "bytes": 6700204,
+      "sha256": "8a576d6a5da190c350cce8040b46c624c5445352429cdce401ca89bfc208b220"
+    },
+    {
+      "id": "194",
+      "name": "STCAIYUN.TTF",
+      "bytes": 5673836,
+      "sha256": "db1e3798626ad08a710cfb3a86db3019a9c67de403ea6430579d83b7d8371a6d"
+    },
+    {
+      "id": "196",
+      "name": "STFANGSO.TTF",
+      "bytes": 11362788,
+      "sha256": "8fc483c134d861229ce8da218255c7b4c8eb20b56479af4132a3fe2b537707e6"
+    },
+    {
+      "id": "197",
+      "name": "STHUPO.TTF",
+      "bytes": 3714568,
+      "sha256": "5068456ee7496c36626c0cf1bca72baafcf724c18073f377160676224e44736d"
+    },
+    {
+      "id": "198",
+      "name": "STKAITI.TTF",
+      "bytes": 12736196,
+      "sha256": "98512f566268636b71ecdd0d0ee399bdc2165c7f80f626ba677e6bfbf1aea023"
+    },
+    {
+      "id": "199",
+      "name": "STLITI.TTF",
+      "bytes": 4111960,
+      "sha256": "d14aab5f98de77abc9e711db8756957b427e835a6f845c71f59586fcfce46381"
+    },
+    {
+      "id": "200",
+      "name": "STSONG.TTF",
+      "bytes": 11697600,
+      "sha256": "1144a375ec4d19b826e968d2ada4643d56224effdfa0fbe02e017b8f89ab5b81"
+    },
+    {
+      "id": "201",
+      "name": "STXIHEI.TTF",
+      "bytes": 9768704,
+      "sha256": "d937989defdbd7e1fb997d8322c35d312a0279c58c191dadbb31ed8023a5f965"
+    },
+    {
+      "id": "202",
+      "name": "STXINGKA.TTF",
+      "bytes": 4016288,
+      "sha256": "f9afe1648e0166bebea1e93303b2b9092dee8f79fd8836667939d01ddf54ccf6"
+    },
+    {
+      "id": "203",
+      "name": "STXINWEI.TTF",
+      "bytes": 4051204,
+      "sha256": "e062867fe121d635e1a7bc363dd48e088ca739fc9a553d1f888abdc3175e634c"
+    },
+    {
+      "id": "204",
+      "name": "STZHONGS.TTF",
+      "bytes": 12135284,
+      "sha256": "aec4b5a4a2bdbdcb9e6df3743b8b54c0b2b832c136661f1576a9bed84f4fa58d"
+    },
+    {
+      "id": "223",
+      "name": "arial.ttf",
+      "bytes": 1045960,
+      "sha256": "adf5ba2e62860b4c5ec4d4e8757798ccbc889f4d8bbf941ec7e4a250b0a95554"
+    },
+    {
+      "id": "224",
+      "name": "arialbd.ttf",
+      "bytes": 990208,
+      "sha256": "26db916ced95091a127abe534b08e05e8ab1fcfd4c8ac1af69f5c91fa36ee0fa"
+    },
+    {
+      "id": "225",
+      "name": "arialbi.ttf",
+      "bytes": 730804,
+      "sha256": "265be5be30822608c078eae528c06baadc4b8d5bd2fc73881469f4eb643f3d95"
+    },
+    {
+      "id": "226",
+      "name": "ariali.ttf",
+      "bytes": 727152,
+      "sha256": "6ea48d71f24ec8e4a3765de59f69553e19076789a3f0281e06e0e7a947ebb9e8"
+    },
+    {
+      "id": "229",
+      "name": "calibri.ttf",
+      "bytes": 940484,
+      "sha256": "38cee231ee97aa2bf2b3760cee3bd1bc08190de26132cb0b407d7947fc2bf422"
+    },
+    {
+      "id": "230",
+      "name": "calibrib.ttf",
+      "bytes": 903960,
+      "sha256": "dd887826c26fe9db8bbbc1f7432957adb4d9d4cbaebee5bda1dffec7dd04b459"
+    },
+    {
+      "id": "231",
+      "name": "calibrii.ttf",
+      "bytes": 997180,
+      "sha256": "44dc034e48dbc36de463e68af0e4fefd96a2892bdb94cab26add38e80846b5b1"
+    },
+    {
+      "id": "232",
+      "name": "calibril.ttf",
+      "bytes": 808104,
+      "sha256": "6da366637c6cd9fa8856dc6c8380ae70321f4846da7130f8615d550315b3e5fd"
+    },
+    {
+      "id": "233",
+      "name": "calibrili.ttf",
+      "bytes": 922760,
+      "sha256": "e5611b5e5eeb4c39f3cba4baf5245a96b45b72c054058ec6a0201c165351f32c"
+    },
+    {
+      "id": "234",
+      "name": "calibriz.ttf",
+      "bytes": 957668,
+      "sha256": "3242ceaed6f8eef3eb3729c8582a5edede7bdb6266dc859f78178affcb6af5de"
+    },
+    {
+      "id": "235",
+      "name": "cambria.ttc",
+      "bytes": 1711796,
+      "sha256": "fd12ada569530888ec5cd99e79b2ce50f535c4f25ee2ec4791d11064b88206b5"
+    },
+    {
+      "id": "236",
+      "name": "cambriab.ttf",
+      "bytes": 796632,
+      "sha256": "613831be05ef16ec0c052b41ffa8d183c4e81a634d3babe478a693d7119c9d8c"
+    },
+    {
+      "id": "237",
+      "name": "cambriai.ttf",
+      "bytes": 843772,
+      "sha256": "0acf8cc1d432161a4f312c171d192f53d1810341f8a8cfc5544ee6a98f74e52c"
+    },
+    {
+      "id": "238",
+      "name": "cambriaz.ttf",
+      "bytes": 809752,
+      "sha256": "e6bc52ecc733890a9f2b1903a3bf97924718b960d3e0b382f95e7d49bdcd62ac"
+    },
+    {
+      "id": "264",
+      "name": "cour.ttf",
+      "bytes": 806504,
+      "sha256": "23c85b44067b0785542cd2db0c975768607647c53504c4c278120acf2bb0320e"
+    },
+    {
+      "id": "265",
+      "name": "courbd.ttf",
+      "bytes": 805244,
+      "sha256": "39d0939ca4574ad65035344ab1985b5171468e55d0ad46d5f832c7b2e8b9d2fe"
+    },
+    {
+      "id": "266",
+      "name": "courbi.ttf",
+      "bytes": 577488,
+      "sha256": "62d2b36827501270dd3abac6665c7aafeb5e12cbc7e0fdde3238616f537cfc16"
+    },
+    {
+      "id": "267",
+      "name": "couri.ttf",
+      "bytes": 667440,
+      "sha256": "e0ce9eb4bafd3ac663e45b2ae997d39d17ee33729261f6fe60f19353ae41e79f"
+    },
+    {
+      "id": "286",
+      "name": "msgothic.ttc",
+      "bytes": 8990160,
+      "sha256": "5a13ea50a5ca501c5cdf0a8c38669f8fa0178cb0cc7fbe0318ea723b1106170a"
+    },
+    {
+      "id": "287",
+      "name": "msyh.ttc",
+      "bytes": 19704352,
+      "sha256": "dfe71564ea8e97ce73411648ddf6ed5ec3d7a423a39e84e207c6fccfa46f1951"
+    },
+    {
+      "id": "288",
+      "name": "msyhbd.ttc",
+      "bytes": 16883552,
+      "sha256": "26658d452f6b73b0deca35bae17dcf3aa53f9363da1a37b4e8fa760e8d79cc27"
+    },
+    {
+      "id": "289",
+      "name": "msyhl.ttc",
+      "bytes": 12189612,
+      "sha256": "50bb86a236eb53ff66e705189c964f0c259d7204fc2c94b14cc93e47f97d15ca"
+    },
+    {
+      "id": "315",
+      "name": "seguisym.ttf",
+      "bytes": 2454728,
+      "sha256": "5cb827a41c0d3753b773da4ed47c78749ace1e767ac97dd2184cde0b2f0fd7ae"
+    },
+    {
+      "id": "316",
+      "name": "simfang.ttf",
+      "bytes": 10570564,
+      "sha256": "564a0af30993212c9c43435f87297edf51fc04a56290f1f0b8e4ad766d83987a"
+    },
+    {
+      "id": "317",
+      "name": "simhei.ttf",
+      "bytes": 9745792,
+      "sha256": "2d0151d81789339bf90f87548f327fe3c368b535928eb573618787585d36d47e"
+    },
+    {
+      "id": "318",
+      "name": "simkai.ttf",
+      "bytes": 11779732,
+      "sha256": "b1e4dbfb543b5a8dbca193a1fe31bb786c09b547ead9a881e75cd0fa8e215016"
+    },
+    {
+      "id": "319",
+      "name": "simsun.ttc",
+      "bytes": 17909384,
+      "sha256": "07d449af7dc77a0576ee6e3422a520d53b70ab3621c35c83d223ec56888c0afb"
+    },
+    {
+      "id": "322",
+      "name": "symbol.ttf",
+      "bytes": 69036,
+      "sha256": "556a612b372c7be509ed005f53c59cf28cd76bd55ae81c83a12a3fda081fd9a1"
+    },
+    {
+      "id": "327",
+      "name": "times.ttf",
+      "bytes": 1006088,
+      "sha256": "a64e7b220b2b9e3d525b8828433fa57e905179b5372433cdd6770a80b09ca225"
+    },
+    {
+      "id": "328",
+      "name": "timesbd.ttf",
+      "bytes": 991536,
+      "sha256": "ddffec161b718315fe57d2704eff8fbbed5fdc6664e393cbf0a4f6de31beac4c"
+    },
+    {
+      "id": "329",
+      "name": "timesbi.ttf",
+      "bytes": 754428,
+      "sha256": "fe1a5d2c03f1dce061ad2f5166e058790c702484bdbf312ebe9f96b4c797d4e4"
+    },
+    {
+      "id": "330",
+      "name": "timesi.ttf",
+      "bytes": 811348,
+      "sha256": "648cef451db46711cfecbf3dd26d40eca71832e886a020a7e624ecb7d135195a"
+    },
+    {
+      "id": "340",
+      "name": "wingding.ttf",
+      "bytes": 82180,
+      "sha256": "895e64b03d3d4f92858b5d6e6304396c3332953e7ec6e570ee5439ba2dd24d88"
+    }
+  ]
+}

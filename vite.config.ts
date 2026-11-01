@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from 'node:url'
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -19,6 +19,11 @@ for (const editor of ['documenteditor', 'spreadsheeteditor', 'presentationeditor
     }
 }
 officeAssetHash.update(readFileSync(new URL('./public/web-apps/apps/api/documents/api.js', import.meta.url)))
+officeAssetHash.update(readFileSync(new URL('./public/sdkjs/common/AllFonts.js', import.meta.url)))
+for (const name of readdirSync(new URL('./public/fonts/', import.meta.url)).sort()) {
+    officeAssetHash.update(name)
+    officeAssetHash.update(readFileSync(new URL(`./public/fonts/${name}`, import.meta.url)))
+}
 const officeAssetVersion = officeAssetHash.digest('hex').slice(0, 16)
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
